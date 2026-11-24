@@ -56,9 +56,10 @@ Open an image with Finder's Open With, by dragging it onto the Dock icon or the 
 | P | Pen |
 | Cmd+Z / Cmd+Shift+Z | Undo / redo |
 | Cmd+S | Overwrite the original (pasted images ask where to save) |
+| Cmd+Shift+S | Save as a new file |
 | Cmd+C | Copy the marked-up image |
 
-Closing a window never asks to save.
+Closing a window or quitting never asks to save: unsaved marks are discarded.
 
 ## Test
 
