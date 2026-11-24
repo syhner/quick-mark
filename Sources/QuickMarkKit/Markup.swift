@@ -4,9 +4,18 @@ import ImageIO
 enum Tool: Int, CaseIterable {
     case box, fill, pen
 
-    var title: String { ["Box", "Filled Box", "Pen"][rawValue] }
-    var key: String { ["b", "f", "p"][rawValue] }
-    var symbol: String { ["rectangle", "rectangle.fill", "scribble"][rawValue] }
+    /// Menu and tooltip title, key equivalent and SF Symbol.
+    private var info: (title: String, key: String, symbol: String) {
+        switch self {
+        case .box: ("Box", "b", "rectangle")
+        case .fill: ("Filled Box", "f", "rectangle.fill")
+        case .pen: ("Pen", "p", "scribble")
+        }
+    }
+
+    var title: String { info.title }
+    var key: String { info.key }
+    var symbol: String { info.symbol }
 }
 
 enum Shape: Equatable {
