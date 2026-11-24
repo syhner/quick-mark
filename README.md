@@ -8,6 +8,13 @@ Minimal native macOS app for marking up screenshots: boxes, filled boxes and fre
 
 Requires macOS 15+.
 
+### Download
+
+1. Download [QuickMark.zip](https://github.com/syhner/quick-mark/releases/latest/download/QuickMark.zip), unzip it and move `QuickMark.app` to Applications.
+2. Open it. QuickMark isn't notarized by Apple, so macOS blocks the first launch: click Done, then go to System Settings → Privacy & Security and click Open Anyway.
+
+   Or allow it from Terminal instead: `xattr -d com.apple.quarantine /Applications/QuickMark.app`
+
 ### Nix
 
 Try it:
@@ -60,6 +67,10 @@ swift run QuickMarkTests
 ```
 
 Drives the app through real key, mouse, Dock-click and clipboard events. Windows flash on screen while it runs; the clipboard is restored afterwards.
+
+## Release
+
+`scripts/release.sh` builds `.build/QuickMark.zip`, the universal app attached to each GitHub release.
 
 ## License
 
