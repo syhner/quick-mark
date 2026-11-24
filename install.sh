@@ -3,13 +3,15 @@
 set -eu
 cd "$(dirname "$0")"
 
+if ! xcode-select -p >/dev/null 2>&1; then
+    echo "QuickMark needs the Xcode Command Line Tools. Install them with: xcode-select --install" >&2
+    exit 1
+fi
+
 swift build -c release --product QuickMark
 
 app="$HOME/Applications/QuickMark.app"
-rm -rf "$app"
-mkdir -p "$app/Contents/MacOS"
-cp .build/release/QuickMark "$app/Contents/MacOS/"
-cp Info.plist "$app/Contents/"
+scripts/bundle.sh .build/release/QuickMark "$app"
 codesign --force --sign - "$app"
 
 # Register with Launch Services so "Open With" lists it straight away.

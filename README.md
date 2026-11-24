@@ -2,13 +2,41 @@
 
 Minimal native macOS app for marking up screenshots: boxes, filled boxes and freehand.
 
+<img src="docs/screenshot.png" alt="QuickMark with a box, a filled box and an underline drawn on a screenshot" width="640">
+
 ## Install
 
-Requires macOS 15+ and the Xcode Command Line Tools.
+Requires macOS 15+.
+
+### Nix
+
+Try it:
 
 ```sh
+nix run github:syhner/quick-mark
+```
+
+Or install it with nix-darwin (appears in `/Applications/Nix Apps`) or Home Manager:
+
+```nix
+# flake inputs
+quickmark.url = "github:syhner/quick-mark";
+
+# nix-darwin: environment.systemPackages, Home Manager: home.packages
+inputs.quickmark.packages.${pkgs.stdenv.hostPlatform.system}.default
+```
+
+### From source
+
+Requires the Xcode Command Line Tools.
+
+```sh
+git clone https://github.com/syhner/quick-mark.git
+cd quick-mark
 ./install.sh
 ```
+
+Installs to `~/Applications/QuickMark.app`. Delete it to uninstall.
 
 ## Use
 
@@ -32,3 +60,7 @@ swift run QuickMarkTests
 ```
 
 Drives the app through real key, mouse, Dock-click and clipboard events. Windows flash on screen while it runs; the clipboard is restored afterwards.
+
+## License
+
+MIT

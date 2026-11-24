@@ -125,15 +125,20 @@ try! FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: t
 
 /// A white image. `dpi: nil` writes no resolution metadata.
 func imageData(width: Int = 800, height: Int = 600, dpi: Double? = 72,
-               type: String = "public.png", gray: Bool = false) -> Data {
+               type: String = "public.png", gray: Bool = false, orientation: Int? = nil) -> Data {
     let space = gray ? CGColorSpaceCreateDeviceGray() : CGColorSpace(name: CGColorSpace.sRGB)!
     let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                         space: space, bitmapInfo: (gray ? CGImageAlphaInfo.none : .noneSkipLast).rawValue)!
     ctx.setFillColor(CGColor(gray: 1, alpha: 1))
     ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    if orientation != nil {  // Mark the stored top-left corner, to see where it ends up.
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: height - 100, width: 100, height: 100))
+    }
     let data = NSMutableData()
     let destination = CGImageDestinationCreateWithData(data, type as CFString, 1, nil)!
-    let properties = dpi.map { [kCGImagePropertyDPIWidth: $0, kCGImagePropertyDPIHeight: $0] } ?? [:]
+    var properties: [CFString: Any] = dpi.map { [kCGImagePropertyDPIWidth: $0, kCGImagePropertyDPIHeight: $0] } ?? [:]
+    properties[kCGImagePropertyOrientation] = orientation
     CGImageDestinationAddImage(destination, ctx.makeImage()!, properties as CFDictionary)
     CGImageDestinationFinalize(destination)
     return data as Data
@@ -621,6 +626,7 @@ func testDocument() {
     let url = e.document.fileURL!
     check(e.document.markup.scale == 2, "144 dpi → scale 2")
     check(e.document.fileType == "public.png", "file type PNG")
+    check(e.canvas.bounds.size == CGSize(width: 400, height: 300), "window fits the image at point size, not letterboxed")
 
     section("Document: drawing never marks it edited, so close and quit don't prompt")
     clickPicker(e, .box)
@@ -709,6 +715,17 @@ func testEncoding() {
     var markup = Markup(data: imageData(gray: true))!
     markup.shapes = [.box(CGRect(x: 100, y: 100, width: 200, height: 200))]
     check(isRed(pixel(markup.data(type: "public.png")!, 100, 200)), "red stays red")
+
+    section("Encoding: EXIF rotation is applied and saved into the pixels")
+    for type in ["public.jpeg", "public.heic"] {
+        // Orientation 6: the stored image displays rotated 90° clockwise.
+        let rotated = Markup(data: imageData(type: type, orientation: 6))!
+        check(rotated.size == CGSize(width: 600, height: 800), "\(type): opens upright")
+        let saved = rotated.data(type: type)!
+        let reopened = Markup(data: saved)!
+        check(reopened.size == CGSize(width: 600, height: 800), "\(type): saves upright")
+        check(isRed(pixel(saved, 550, 750)) && isWhite(pixel(saved, 50, 750)), "\(type): stored top-left is now top-right")
+    }
 }
 
 // MARK: - Run

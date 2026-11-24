@@ -14,14 +14,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSTool
         let screen = NSScreen.main?.visibleFrame.size ?? CGSize(width: 1200, height: 800)
         let fit = min(1, screen.width * 0.9 / size.width, (screen.height * 0.9 - 60) / size.height)
         let minSize = CGSize(width: 360, height: 200)
-        let window = NSWindow(
-            contentRect: CGRect(x: 0, y: 0, width: max(minSize.width, size.width * fit),
-                                height: max(minSize.height, size.height * fit)),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered, defer: false)
+        let contentSize = CGSize(width: max(minSize.width, size.width * fit), height: max(minSize.height, size.height * fit))
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: contentSize),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                              backing: .buffered, defer: false)
         window.contentView = canvas
         window.contentMinSize = minSize
-        window.center()
         super.init(window: window)
 
         let toolbar = NSToolbar(identifier: "editor")
@@ -29,6 +27,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate, NSTool
         toolbar.centeredItemIdentifiers = [Self.toolsItem]
         window.toolbar = toolbar
         window.toolbarStyle = .unifiedCompact
+        window.setContentSize(contentSize)  // Adding the toolbar grew the content, which letterboxed the image.
+        window.center()
         window.delegate = self
         window.makeFirstResponder(canvas)
     }

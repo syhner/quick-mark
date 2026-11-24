@@ -54,10 +54,20 @@ struct Markup {
 
 extension Markup {
     init?(data: Data) {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        else { return nil }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        // Photos often store their rotation as an EXIF tag. Saving drops the tag, so bake it into the pixels.
+        let rotated = (properties?[kCGImagePropertyOrientation] as? Int ?? 1) != 1
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(properties?[kCGImagePropertyPixelWidth] as? Int ?? 0,
+                                                     properties?[kCGImagePropertyPixelHeight] as? Int ?? 0),
+        ]
+        guard let image = rotated
+            ? CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+            : CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return nil }
         let dpi = properties?[kCGImagePropertyDPIWidth] as? Double ?? 72
         self.init(image: image, scale: max(1, dpi / 72))
     }
