@@ -9,6 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Keeps the app out of the Dock when it isn't in use. Nothing is lost: closing never asks to save.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
     @objc func paste(_ sender: Any?) {
         if !ImageDocument.open(from: .general) { NSSound.beep() }
     }

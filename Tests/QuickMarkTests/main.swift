@@ -3,7 +3,7 @@
 // Windows flash on screen while it runs. The general clipboard is saved and restored.
 //
 // State machines under test:
-//   App windows   welcome / editors / none, via launch, open, paste, drop, close, reopen
+//   App windows   welcome / editors / quit, via launch, open, paste, drop, close, reopen
 //   Tool          box / fill / pen per window, via B F P keys, toolbar picker, Tools menu
 //   Gesture       idle / drawing per window, via mouse down, drag, up
 //   Undo          the shapes stack, via draw, Cmd+Z, Cmd+Shift+Z
@@ -38,6 +38,10 @@ final class TestApp: NSApplication {
     var focused: NSWindow?
     override var keyWindow: NSWindow? { focused ?? super.keyWindow }
     override var mainWindow: NSWindow? { focused ?? super.mainWindow }
+
+    /// Records quits instead of exiting, so the tests can carry on.
+    var quitRequested = false
+    override func terminate(_ sender: Any?) { quitRequested = true }
 }
 
 let app = TestApp.shared as! TestApp
@@ -105,6 +109,13 @@ func documents() -> [NSDocument] { NSDocumentController.shared.documents }
 
 func closeAllDocuments() {
     documents().forEach { $0.close() }
+    pump()
+}
+
+/// Shows the welcome as at launch. The app would have quit when its last window closed.
+func relaunch() {
+    _ = delegate.applicationOpenUntitledFile(app)
+    app.quitRequested = false
     pump()
 }
 
@@ -253,29 +264,31 @@ func testAppWindows() {
     let editor = openEditor()
     check(editorWindows().count == 1, "editor window shows")
     check(!welcomeVisible(), "welcome closes when an editor opens")
+    pump(0.2)
+    check(!app.quitRequested, "swapping the welcome for an editor doesn't quit")
 
     section("App windows: editor → reopen (Dock click) → no welcome")
     reopen()
     check(!welcomeVisible(), "reopen with an editor open shows no welcome")
 
-    section("App windows: editor → close last → none")
+    section("App windows: editor → close last → quit")
     editor.key("w", .command)
     check(wait { editorWindows().isEmpty }, "Cmd+W closes the editor")
     check(!welcomeVisible(), "closing the last editor doesn't show the welcome")
+    check(wait { app.quitRequested }, "closing the last window quits")
+    app.quitRequested = false
 
-    section("App windows: none → reopen → welcome; welcome → reopen → one welcome")
-    reopen()
-    check(welcomeVisible(), "reopen with no windows shows the welcome")
+    section("App windows: welcome → reopen → one welcome")
+    relaunch()
     reopen()
     check(app.windows.filter { $0 is WelcomeWindow }.count == 1, "reopen doesn't duplicate the welcome")
 
-    section("App windows: welcome → close → none → reopen → welcome")
+    section("App windows: welcome → close → quit")
     let welcome = app.windows.first { $0 is WelcomeWindow }!
     welcome.performClose(nil)
-    pump()
-    check(!welcomeVisible(), "welcome closes")
-    reopen()
-    check(welcomeVisible(), "closed welcome comes back on reopen")
+    check(wait { app.quitRequested }, "closing the welcome quits")
+    app.quitRequested = false
+    relaunch()
 
     section("App windows: welcome → Cmd+V")
     preservingClipboard {
@@ -294,7 +307,7 @@ func testAppWindows() {
         check(!welcomeVisible(), "welcome closes after pasting an image")
         closeAllDocuments()
 
-        reopen()
+        relaunch()
         let url = imageFile("pasted-file.png")
         pasteboard.clearContents()
         pasteboard.writeObjects([url as NSURL])
