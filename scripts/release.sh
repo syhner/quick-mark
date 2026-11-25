@@ -16,3 +16,4 @@ codesign --force --sign - "$app"
 rm -f .build/QuickMark.zip
 ditto -c -k --keepParent "$app" .build/QuickMark.zip
 echo "Built .build/QuickMark.zip"
+echo "sha256 $(shasum -a 256 .build/QuickMark.zip | cut -d' ' -f1)"

@@ -8,6 +8,14 @@ Minimal native macOS app for marking up screenshots: boxes, filled boxes and fre
 
 Requires macOS 15+.
 
+### Homebrew
+
+```sh
+brew install --cask syhner/tap/quickmark
+```
+
+The cask clears macOS's quarantine flag on install, so the first launch isn't blocked even though QuickMark isn't notarized.
+
 ### Download
 
 1. Download [QuickMark.zip](https://github.com/syhner/quick-mark/releases/latest/download/QuickMark.zip), unzip it and move `QuickMark.app` to Applications.
@@ -71,7 +79,7 @@ Drives the app through real key, mouse, Dock-click and clipboard events. Windows
 
 ## Release
 
-`scripts/release.sh` builds `.build/QuickMark.zip`, the universal app attached to each GitHub release.
+`scripts/release.sh` builds `.build/QuickMark.zip`, the universal app attached to each GitHub release, and prints its SHA-256. After publishing the release, set `version` and `sha256` in [the cask](https://github.com/syhner/homebrew-tap/blob/main/Casks/quickmark.rb).
 
 ## License
 
