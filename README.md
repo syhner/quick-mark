@@ -59,7 +59,7 @@ Open an image with Finder's Open With, by dragging it onto the Dock icon or the 
 | Cmd+Shift+S | Save as a new file |
 | Cmd+C | Copy the marked-up image |
 
-Closing a window or quitting never asks to save: unsaved marks are discarded. Closing the last window quits.
+Closing a window copies the marked-up image. Closing or quitting never asks to save: unsaved marks are discarded from the file. Closing the last window quits.
 
 ## Test
 

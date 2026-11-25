@@ -62,4 +62,10 @@ final class ImageDocument: NSDocument {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setData(data, forType: .png)
     }
+
+    /// Closing copies the marked-up image, so it's ready to paste.
+    override func close() {
+        copy(nil)
+        super.close()
+    }
 }

@@ -7,7 +7,7 @@
 //   Tool          box / fill / pen per window, via B F P keys, toolbar picker, Tools menu
 //   Gesture       idle / drawing per window, via mouse down, drag, up
 //   Undo          the shapes stack, via draw, Cmd+Z, Cmd+Shift+Z
-//   Document      untitled / file-backed, saved / closed, via save, close, copy
+//   Document      untitled / file-backed, saved / closed, via save, close (copies), copy
 //   Drop target   idle / targeted, via drag enter, exit, drop
 // Not covered: the Open and Save dialogs (modal), and real app activation.
 
@@ -281,6 +281,7 @@ func testAppWindows() {
     app.quitRequested = false
 
     section("App windows: welcome → reopen → one welcome")
+    NSPasteboard.general.clearContents()  // Closing copied the image, which launch would open.
     relaunch()
     reopen()
     check(app.windows.filter { $0 is WelcomeWindow }.count == 1, "reopen doesn't duplicate the welcome")
@@ -683,6 +684,8 @@ func testDocument() {
     check(window.attachedSheet == nil, "no save prompt")
     check(wait { documents().isEmpty }, "document closed")
     check(isWhite(pixel(try! Data(contentsOf: url), 550, 150)), "unsaved fill not written")
+    let closed = NSPasteboard.general.data(forType: .png)
+    check(closed.map { isBlack(pixel($0, 550, 150)) } ?? false, "closing copies the image, unsaved fill included")
 
     section("Document: reopening an open file returns the same document")
     let first = open(url)
