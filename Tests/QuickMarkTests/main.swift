@@ -1,6 +1,6 @@
 // Drives QuickMark's real code through its event loop: posted key and mouse events,
 // responder-chain actions, Apple Events and pasteboards. Run with `swift run QuickMarkTests`.
-// Windows flash on screen while it runs. The general clipboard is saved and restored.
+// Windows flash on screen while it runs. The general clipboard is emptied, then restored at exit.
 //
 // State machines under test:
 //   App windows   welcome / editors / quit, via launch, open, paste, drop, close, reopen
@@ -112,7 +112,7 @@ func closeAllDocuments() {
     pump()
 }
 
-/// Shows the welcome as at launch. The app would have quit when its last window closed.
+/// Launches again, as after the app quit when its last window closed.
 func relaunch() {
     _ = delegate.applicationOpenUntitledFile(app)
     app.quitRequested = false
@@ -184,20 +184,22 @@ func privatePasteboard() -> NSPasteboard {
     NSPasteboard(name: .init("QuickMarkTests-\(UUID().uuidString)"))
 }
 
-/// Runs `body` and puts the user's clipboard back afterwards.
-func preservingClipboard(_ body: () -> Void) {
+/// Launch opens the clipboard, so the tests start with it empty and put the user's back at exit.
+let restoreClipboard = {
     let pasteboard = NSPasteboard.general
     let saved = (pasteboard.pasteboardItems ?? []).map { item in
         item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }
     }
-    body()
     pasteboard.clearContents()
-    pasteboard.writeObjects(saved.map { pairs in
-        let item = NSPasteboardItem()
-        for (type, data) in pairs { item.setData(data, forType: type) }
-        return item
-    })
-}
+    return {
+        pasteboard.clearContents()
+        pasteboard.writeObjects(saved.map { pairs in
+            let item = NSPasteboardItem()
+            for (type, data) in pairs { item.setData(data, forType: type) }
+            return item
+        })
+    }
+}()
 
 // MARK: Editors
 
@@ -291,31 +293,38 @@ func testAppWindows() {
     relaunch()
 
     section("App windows: welcome → Cmd+V")
-    preservingClipboard {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString("not an image", forType: .string)
-        press("v", .command, in: welcome)
-        check(documents().isEmpty, "pasting text opens nothing")
-        check(welcomeVisible(), "welcome stays after pasting text")
+    let pasteboard = NSPasteboard.general
+    pasteboard.setString("not an image", forType: .string)
+    press("v", .command, in: welcome)
+    check(documents().isEmpty, "pasting text opens nothing")
+    check(welcomeVisible(), "welcome stays after pasting text")
 
-        pasteboard.clearContents()
-        pasteboard.setData(imageData(dpi: 144), forType: .png)
-        press("v", .command, in: welcome)
-        check(documents().count == 1, "pasting an image opens it")
-        check(documents().first?.fileURL == nil, "pasted image is untitled")
-        check(!welcomeVisible(), "welcome closes after pasting an image")
-        closeAllDocuments()
+    pasteboard.clearContents()
+    pasteboard.setData(imageData(dpi: 144), forType: .png)
+    press("v", .command, in: welcome)
+    check(documents().count == 1, "pasting an image opens it")
+    check(documents().first?.fileURL == nil, "pasted image is untitled")
+    check(!welcomeVisible(), "welcome closes after pasting an image")
+    closeAllDocuments()
 
-        relaunch()
-        let url = imageFile("pasted-file.png")
-        pasteboard.clearContents()
-        pasteboard.writeObjects([url as NSURL])
-        press("v", .command, in: welcome)
-        check(wait { documents().first?.fileURL == url }, "pasting a copied file opens that file")
-        check(!welcomeVisible(), "welcome closes after pasting a file")
-        closeAllDocuments()
-    }
+    pasteboard.clearContents()
+    relaunch()
+    let url = imageFile("pasted-file.png")
+    pasteboard.writeObjects([url as NSURL])
+    press("v", .command, in: welcome)
+    check(wait { documents().first?.fileURL == url }, "pasting a copied file opens that file")
+    check(!welcomeVisible(), "welcome closes after pasting a file")
+    closeAllDocuments()
+
+    section("App windows: launch with an image on the clipboard → editor")
+    pasteboard.clearContents()
+    pasteboard.setData(imageData(), forType: .png)
+    relaunch()
+    check(documents().count == 1 && documents()[0].fileURL == nil, "launch opens the clipboard image")
+    check(editorWindows().count == 1 && !welcomeVisible(), "launch shows the editor, not the welcome")
+    closeAllDocuments()
+    pasteboard.clearContents()
+    app.quitRequested = false
 }
 
 // MARK: - Pasteboard and drop input
@@ -375,6 +384,16 @@ func testInput() {
     pasteboard = privatePasteboard()
     pasteboard.setString("text", forType: .string)
     check(!ImageDocument.open(from: pasteboard) && documents().isEmpty, "text opens nothing")
+
+    let notes = tmp.appendingPathComponent("notes.txt")
+    try! Data("notes".utf8).write(to: notes)
+    pasteboard = privatePasteboard()
+    pasteboard.writeObjects([notes as NSURL])
+    pasteboard.addTypes([.tiff], owner: nil)
+    pasteboard.setData(NSImage(data: imageData(width: 32, height: 32))!.tiffRepresentation!, forType: .tiff)
+    check(!ImageDocument.open(from: pasteboard), "Finder copy of a non-image reports nothing opened")
+    pump(0.2)
+    check(documents().isEmpty, "Finder copy of a non-image opens neither the file nor its icon")
 
     section("Drop target: idle ⇄ targeted, drop opens")
     let view = DropView(frame: CGRect(x: 0, y: 0, width: 360, height: 240))
@@ -703,13 +722,11 @@ func testDocument() {
     check(wait { isBlack(pixel(try! Data(contentsOf: target), 550, 150)) }, "Cmd+S overwrites the saved file")
 
     section("Document: Cmd+C copies the marked-up image")
-    preservingClipboard {
-        untitled.key("c", .command)
-        let copied = NSPasteboard.general.data(forType: .png)
-        check(copied != nil, "PNG on the clipboard")
-        if let copied {
-            check(isRed(pixel(copied, 100, 200)) && isBlack(pixel(copied, 550, 150)), "copy includes the shapes")
-        }
+    untitled.key("c", .command)
+    let copied = NSPasteboard.general.data(forType: .png)
+    check(copied != nil, "PNG on the clipboard")
+    if let copied {
+        check(isRed(pixel(copied, 100, 200)) && isBlack(pixel(copied, 550, 150)), "copy includes the shapes")
     }
     closeAllDocuments()
 }
@@ -750,6 +767,7 @@ func step(_ body: @escaping () -> Void) { steps.append(body) }
 func runSteps() {
     guard !steps.isEmpty else {
         try? FileManager.default.removeItem(at: tmp)
+        restoreClipboard()
         print(failures.isEmpty ? "\nAll \(passed) checks passed." : "\n\(failures.count) of \(passed + failures.count) checks failed.")
         exit(failures.isEmpty ? 0 : 1)
     }

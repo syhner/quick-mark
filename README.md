@@ -47,7 +47,7 @@ Installs to `~/Applications/QuickMark.app`. Delete it to uninstall.
 
 ## Use
 
-Open an image with Finder's Open With, by dragging it onto the Dock icon or the launch window, with Cmd+O, or paste one with Cmd+V.
+Open an image with Finder's Open With, by dragging it onto the Dock icon or the launch window, with Cmd+O, or paste one with Cmd+V. Launching QuickMark on its own opens the image on the clipboard, if there is one.
 
 | Key | Action |
 |---|---|

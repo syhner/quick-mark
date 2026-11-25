@@ -34,13 +34,18 @@ final class ImageDocument: NSDocument {
 
     /// Opens image files from a paste or drop, or raw image data as a new untitled PNG.
     /// Returns false if there was nothing to open.
+    /// Checks the types before reading, so macOS's clipboard privacy prompt only shows when there may be an image.
     static func open(from pasteboard: NSPasteboard) -> Bool {
-        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        if !urls.isEmpty {
+        // Copying a file in Finder also puts its icon on the pasteboard: never open that instead.
+        if pasteboard.availableType(from: [.fileURL]) != nil {
+            let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [
+                .urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: readableTypes,
+            ]) as? [URL] ?? []
             for url in urls { NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in } }
-            return true
+            return !urls.isEmpty
         }
-        guard let data = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff),
+        guard let type = pasteboard.availableType(from: [.png, .tiff]),
+              let data = pasteboard.data(forType: type),
               let markup = Markup(data: data)
         else { return false }
         let document = ImageDocument()

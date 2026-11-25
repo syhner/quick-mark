@@ -3,9 +3,10 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var welcome = WelcomeWindow()
 
-    /// Called at launch and on Dock click when no images are open.
+    /// Called at launch without a file, and on Dock click when no images are open.
+    /// Opens the image on the clipboard, if any, as if pasted.
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        welcome.makeKeyAndOrderFront(nil)
+        if !ImageDocument.open(from: .general) { welcome.makeKeyAndOrderFront(nil) }
         return true
     }
 
